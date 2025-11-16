@@ -1,27 +1,35 @@
 const { Client, MessageAttachment, MessageEmbed } = require("discord.js-selfbot-v13");
 const fetch = require("node-fetch");
+const express = require("express");
 
+// -------------------- Expressサーバー --------------------
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get("/", (req, res) => res.send("Selfbot is running!"));
+app.listen(PORT, () => console.log(`Express server listening on port ${PORT}`));
+
+// -------------------- Discord Selfbot --------------------
 const client = new Client({ checkUpdate: false });
 
 client.login(process.env.TOKEN);
 
 client.on("ready", () => {
-    console.log(`${client.user.tag}でログインしました！`);
+    console.log(`${client.user.tag} でログインしました！`);
     client.user.setStatus("online");
     client.user.setActivity("Make it a Quote", { type: "PLAYING" });
 });
 
 client.on("messageCreate", async (msg) => {
-    if (msg.author.id !== client.user.id) return;
+    if (msg.author.id !== client.user.id) return; // 自分のメッセージのみ対象
 
-    // --- !ping 機能 ---
+    // --- !ping ---
     if (msg.content === "!ping") {
         const sent = await msg.channel.send("🏓 Ping中...");
         const ping = sent.createdTimestamp - msg.createdTimestamp;
         return sent.edit(`🏓 Pong! ${ping}ms`);
     }
 
-    // --- !server 機能 ---
+    // --- !server ---
     if (msg.content === "!server") {
         const guild = msg.guild;
         if (!guild) return msg.channel.send("⚠️このコマンドはサーバー内でのみ使用可能です。");
@@ -39,9 +47,8 @@ client.on("messageCreate", async (msg) => {
         return msg.channel.send({ embeds: [embed] });
     }
 
-    // --- !mq 機能 ---
+    // --- !mq ---
     if (msg.content !== "!mq") return;
-
     if (!msg.reference) return msg.channel.send("⚠️返信で使ってください。");
 
     const replied = await msg.channel.messages.fetch(msg.reference.messageId);
