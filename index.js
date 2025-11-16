@@ -20,7 +20,8 @@ client.on("ready", () => {
 });
 
 client.on("messageCreate", async (msg) => {
-    if (msg.author.id !== client.user.id) return; // 自分のメッセージのみ対象
+    // ⚠️ Botメッセージは無視（無限ループ防止）
+    if (msg.author.bot) return;
 
     // --- !ping ---
     if (msg.content === "!ping") {
