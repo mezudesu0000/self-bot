@@ -1,9 +1,8 @@
-const { Client, Intents, MessageAttachment } = require("discord.js-selfbot-v13");
+const { Client, MessageAttachment, MessageEmbed } = require("discord.js-selfbot-v13");
 const fetch = require("node-fetch");
 
 const client = new Client({ checkUpdate: false });
 
-// Token は Render の環境変数
 client.login(process.env.TOKEN);
 
 client.on("ready", () => {
@@ -12,9 +11,35 @@ client.on("ready", () => {
     client.user.setActivity("Make it a Quote", { type: "PLAYING" });
 });
 
-// メッセージイベント
 client.on("messageCreate", async (msg) => {
     if (msg.author.id !== client.user.id) return;
+
+    // --- !ping 機能 ---
+    if (msg.content === "!ping") {
+        const sent = await msg.channel.send("🏓 Ping中...");
+        const ping = sent.createdTimestamp - msg.createdTimestamp;
+        return sent.edit(`🏓 Pong! ${ping}ms`);
+    }
+
+    // --- !server 機能 ---
+    if (msg.content === "!server") {
+        const guild = msg.guild;
+        if (!guild) return msg.channel.send("⚠️このコマンドはサーバー内でのみ使用可能です。");
+
+        const embed = new MessageEmbed()
+            .setTitle(`🛡️ ${guild.name} の情報`)
+            .setThumbnail(guild.iconURL({ dynamic: true }))
+            .addField("サーバーID", guild.id, true)
+            .addField("メンバー数", guild.memberCount.toString(), true)
+            .addField("作成日", guild.createdAt.toDateString(), true)
+            .addField("ブーストレベル", guild.premiumTier.toString(), true)
+            .setColor("BLUE")
+            .setFooter({ text: `リクエスト: ${msg.author.tag}` });
+
+        return msg.channel.send({ embeds: [embed] });
+    }
+
+    // --- !mq 機能 ---
     if (msg.content !== "!mq") return;
 
     if (!msg.reference) return msg.channel.send("⚠️返信で使ってください。");
@@ -38,7 +63,6 @@ client.on("messageCreate", async (msg) => {
         });
 
         const data = await res.json();
-        // APIが返すURLから画像を取得して送信
         const imgRes = await fetch(data.url);
         const buffer = await imgRes.arrayBuffer();
         const attachment = new MessageAttachment(Buffer.from(buffer), "quote.png");
