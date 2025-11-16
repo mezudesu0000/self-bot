@@ -11,7 +11,7 @@ const { Client } = require("discord.js-selfbot-v13");
 const client = new Client({ checkUpdate: false });
 
 // =========================
-// Express（Render用 keepalive）
+// Express（Render keepalive）
 // =========================
 const app = express();
 app.get("/", (req, res) => res.send("Selfbot Running!"));
@@ -32,8 +32,6 @@ client.on("ready", () => {
 // メッセージ反応
 // =========================
 client.on("messageCreate", async (msg) => {
-    // Selfbotなので基本的に本人しか使えない → 他人も使用できるように変更
-    // if (msg.author.id !== client.user.id) return; ← これを削除
 
     //==========================
     // !ping
@@ -45,12 +43,11 @@ client.on("messageCreate", async (msg) => {
     }
 
     //==========================
-    // !server → テキスト表示
+    // !server（テキスト表示）
     //==========================
     if (msg.content === "!server") {
         const g = msg.guild;
-        if (!g)
-            return msg.channel.send("⚠️ このコマンドはサーバー内でのみ使えます。");
+        if (!g) return msg.channel.send("⚠️ サーバー内で使ってね。");
 
         const infoText =
             "===== 🛡 サーバー情報 =====\n" +
@@ -64,7 +61,7 @@ client.on("messageCreate", async (msg) => {
     }
 
     //==========================
-    // !mq（返信したメッセージを画像に）
+    // !mq（Make it a Quote 完全互換）
     //==========================
     if (msg.content === "!mq") {
         if (!msg.reference)
@@ -72,25 +69,31 @@ client.on("messageCreate", async (msg) => {
 
         const replied = await msg.channel.messages.fetch(msg.reference.messageId);
 
+        // サーバー情報を取得（ニックネーム＆サーバーアバター対応）
+        const member = replied.guild?.members?.cache?.get(replied.author.id);
+
+        // サーバー名（ニックネーム） > 通常ユーザー名
+        const displayName = member?.displayName || replied.author.username;
+
+        // サーバーアバター > 通常アバター
+        const avatarURL =
+            member?.avatarURL({ format: "png", size: 512 }) ||
+            replied.author.displayAvatarURL({ format: "png", size: 512 });
+
         const text = replied.content;
-        const author = replied.author.username;
-        const avatar = replied.author.displayAvatarURL({
-            format: "png",
-            size: 512
-        });
 
         try {
-            // axios版（Renderで確実に動く）
             const res = await axios.post("https://api.voids.top/quote", {
-                username: author,
-                display_name: author,
+                username: displayName,        // ← Make it a Quote が使う名前
+                display_name: displayName,    // ← これが無いと ID になる
                 text: text,
-                avatar: avatar,
+                avatar: avatarURL,
                 color: true
             });
 
             const imageURL = res.data.url;
-            if (!imageURL) return msg.channel.send("⚠️ 画像生成に失敗しました。");
+            if (!imageURL)
+                return msg.channel.send("⚠️ 画像生成に失敗しました。");
 
             msg.channel.send({ files: [imageURL] });
 
