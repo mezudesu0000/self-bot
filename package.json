@@ -2,12 +2,13 @@
   "name": "mq-selfbot",
   "version": "1.0.0",
   "main": "index.js",
-  "dependencies": {
-    "discord.js-selfbot-v13": "latest",
-    "node-fetch": "latest",
-    "debug": "latest"
-  },
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "latest",
+    "express": "latest",
+    "node-fetch": "latest",
+    "debug": "latest"
   }
 }
