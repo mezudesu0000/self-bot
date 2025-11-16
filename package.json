@@ -4,7 +4,8 @@
   "main": "index.js",
   "dependencies": {
     "discord.js-selfbot-v13": "latest",
-    "node-fetch": "latest"
+    "node-fetch": "latest",
+    "debug": "latest"
   },
   "scripts": {
     "start": "node index.js"
