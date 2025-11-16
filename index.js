@@ -1,10 +1,9 @@
 const { Client, Intents, MessageAttachment } = require("discord.js-selfbot-v13");
 const fetch = require("node-fetch");
-const { createCanvas } = require("canvas");
 
 const client = new Client({ checkUpdate: false });
 
-// ログイン（Renderの環境変数TOKENを使用）
+// Token は Render の環境変数
 client.login(process.env.TOKEN);
 
 client.on("ready", () => {
@@ -12,58 +11,6 @@ client.on("ready", () => {
     client.user.setStatus("online");
     client.user.setActivity("Make it a Quote", { type: "PLAYING" });
 });
-
-// テキスト折り返し関数
-function wrapText(ctx, text, maxWidth) {
-    const words = text.split(" ");
-    const lines = [];
-    let line = "";
-
-    for (let word of words) {
-        const testLine = line + word + " ";
-        const width = ctx.measureText(testLine).width;
-        if (width > maxWidth && line !== "") {
-            lines.push(line);
-            line = word + " ";
-        } else {
-            line = testLine;
-        }
-    }
-    lines.push(line);
-    return lines;
-}
-
-// 本家風画像生成関数
-async function createQuoteImage(text, author) {
-    const width = 900;
-    const height = 500;
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-
-    // 背景
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    // 文字
-    ctx.fillStyle = "#000000";
-    ctx.font = "38px Arial";
-    ctx.textAlign = "left";
-
-    const quoteText = `"${text}"`;
-    const lines = wrapText(ctx, quoteText, width - 160);
-    const lineHeight = 50;
-
-    lines.forEach((line, i) => {
-        ctx.fillText(line, 80, 120 + i * lineHeight);
-    });
-
-    // 作者名
-    ctx.font = "bold 36px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(`— ${author}`, width - 80, height - 80);
-
-    return canvas.toBuffer("image/png");
-}
 
 // メッセージイベント
 client.on("messageCreate", async (msg) => {
@@ -75,8 +22,31 @@ client.on("messageCreate", async (msg) => {
     const replied = await msg.channel.messages.fetch(msg.reference.messageId);
     const text = replied.content;
     const author = replied.author.username;
+    const avatar = replied.author.displayAvatarURL({ format: "png", size: 512 });
 
-    const imgBuffer = await createQuoteImage(text, author);
-    const attachment = new MessageAttachment(imgBuffer, "quote.png");
-    msg.channel.send({ files: [attachment] });
+    try {
+        const res = await fetch("https://api.voids.top/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                username: author,
+                display_name: author,
+                text: text,
+                avatar: avatar,
+                color: true
+            })
+        });
+
+        const data = await res.json();
+        // APIが返すURLから画像を取得して送信
+        const imgRes = await fetch(data.url);
+        const buffer = await imgRes.arrayBuffer();
+        const attachment = new MessageAttachment(Buffer.from(buffer), "quote.png");
+
+        msg.channel.send({ files: [attachment] });
+
+    } catch (err) {
+        console.error(err);
+        msg.channel.send("⚠️画像生成中にエラーが発生しました。");
+    }
 });
