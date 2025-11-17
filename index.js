@@ -15,11 +15,11 @@ const client = new Client({ checkUpdate: false });
 // =========================
 const app = express();
 app.get("/", (req, res) => res.send("Selfbot Running!"));
+app.listen(3000, () => console.log("Express: 3000番で起動"));
 
-// Render の PORT に合わせる（重要）
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Express: PORT = " + PORT));
-
+// =========================
+// ログイン
+// =========================
 client.login(process.env.TOKEN);
 
 // =========================
@@ -30,6 +30,33 @@ client.on("ready", () => {
     client.user.setStatus("online");
     client.user.setActivity("Make it a Quote", { type: "PLAYING" });
 });
+
+// =========================
+// Gemini AI（!g）
+const GEMINI_KEY = process.env.GEMINI_KEY;
+
+async function askGemini(question) {
+    try {
+        const res = await axios.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_KEY,
+            {
+                contents: [
+                    {
+                        parts: [{ text: question }]
+                    }
+                ]
+            }
+        );
+
+        return (
+            res.data.candidates?.[0]?.content?.parts?.[0]?.text ||
+            "⚠️ 返答が取得できませんでした。"
+        );
+    } catch (err) {
+        console.error("Gemini API ERROR:", err.response?.data || err);
+        return "⚠️ Gemini API エラーが発生しました。";
+    }
+}
 
 // =========================
 // メッセージ反応
@@ -72,20 +99,13 @@ client.on("messageCreate", async (msg) => {
 
         const replied = await msg.channel.messages.fetch(msg.reference.messageId);
 
-        // サーバーのメンバー情報
         const member = replied.guild?.members?.cache?.get(replied.author.id);
 
-        // ニックネーム優先
-        const displayName =
-            member?.nickname ||
-            member?.displayName ||
-            replied.author.globalName ||
-            replied.author.username;
+        const displayName = member?.displayName || replied.author.username;
 
-        // サーバーアバター → 通常アバター
         const avatarURL =
-            member?.avatarURL({ extension: "png", size: 512 }) ||
-            replied.author.displayAvatarURL({ extension: "png", size: 512 });
+            member?.avatarURL({ format: "png", size: 512 }) ||
+            replied.author.displayAvatarURL({ format: "png", size: 512 });
 
         const text = replied.content;
 
@@ -108,5 +128,19 @@ client.on("messageCreate", async (msg) => {
             console.error("MQ ERROR:", err);
             msg.channel.send("⚠️ 画像生成中にエラーが発生しました。");
         }
+    }
+
+    //==========================
+    // !g （Gemini AI 返答）
+    //==========================
+    if (msg.content.startsWith("!g ")) {
+        const question = msg.content.slice(3).trim();
+        if (!question) return msg.reply("❓ 質問を入力してね");
+
+        const thinking = await msg.reply("🤖 Gemini に考えさせています…");
+
+        const answer = await askGemini(question);
+
+        return thinking.edit(answer);
     }
 });
