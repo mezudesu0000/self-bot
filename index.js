@@ -15,7 +15,10 @@ const client = new Client({ checkUpdate: false });
 // =========================
 const app = express();
 app.get("/", (req, res) => res.send("Selfbot Running!"));
-app.listen(3000, () => console.log("Express: 3000番で起動"));
+
+// Render の PORT に合わせる（重要）
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Express: PORT = " + PORT));
 
 client.login(process.env.TOKEN);
 
@@ -26,26 +29,6 @@ client.on("ready", () => {
     console.log(`${client.user.tag} でログインしました！`);
     client.user.setStatus("online");
     client.user.setActivity("Make it a Quote", { type: "PLAYING" });
-
-    // ======== 自動 /up （テキスト送信） ========
-    const channelId = "1421271498785685554";
-
-    const sendUp = () => {
-        const ch = client.channels.cache.get(channelId);
-        if (!ch) return console.log("⚠️ /up 用チャンネルが見つかりません");
-
-        ch.send("/up").then(() => {
-            console.log("✅ /up を自動送信しました");
-        }).catch(err => {
-            console.error("❌ /up 自動送信エラー:", err);
-        });
-    };
-
-    // 起動時にまず1回送信
-    sendUp();
-
-    // 2時間ごとに実行（7200000ms = 2時間）
-    setInterval(sendUp, 2 * 60 * 60 * 1000);
 });
 
 // =========================
@@ -81,7 +64,7 @@ client.on("messageCreate", async (msg) => {
     }
 
     //==========================
-    // !mq（Make it a Quote）
+    // !mq（Make it a Quote 完全互換）
     //==========================
     if (msg.content === "!mq") {
         if (!msg.reference)
@@ -89,13 +72,20 @@ client.on("messageCreate", async (msg) => {
 
         const replied = await msg.channel.messages.fetch(msg.reference.messageId);
 
+        // サーバーのメンバー情報
         const member = replied.guild?.members?.cache?.get(replied.author.id);
 
-        const displayName = member?.displayName || replied.author.username;
+        // ニックネーム優先
+        const displayName =
+            member?.nickname ||
+            member?.displayName ||
+            replied.author.globalName ||
+            replied.author.username;
 
+        // サーバーアバター → 通常アバター
         const avatarURL =
-            member?.avatarURL({ format: "png", size: 512 }) ||
-            replied.author.displayAvatarURL({ format: "png", size: 512 });
+            member?.avatarURL({ extension: "png", size: 512 }) ||
+            replied.author.displayAvatarURL({ extension: "png", size: 512 });
 
         const text = replied.content;
 
